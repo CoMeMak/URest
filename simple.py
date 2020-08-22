@@ -66,7 +66,6 @@ class Robot(Resource):
         
         print("rpy: ", rpy)
         
-        #return {'x': pose[0] * 1000, 'y': pose[1]  * 1000, 'z':pose[2]  * 1000, 'rx': pose[3] * 57.2958, 'ry': pose[4] * 57.2958, 'rz': pose[5] * 57.2958}
         return {'x': pose[0] * 1000, 'y': pose[1]  * 1000, 'z':pose[2]  * 1000, 'rx': rpy[0], 'ry': rpy[1], 'rz': rpy[2], 'freedrive': rob.get_freedrive()}
 
     def post(self):
@@ -87,10 +86,6 @@ class Robot(Resource):
             
                 r = R.from_euler('XYZ',np.array([rx,ry,rz]),degrees=True)
                 rv = r.as_rotvec()        
-            
-                #rob = urx.Robot("192.168.50.110")
-                #rob.set_pos((target_x,target_y,target_z), acc=0.3, vel=0.01)
-                #rob.movej((x,y,z,rx,ry,rz), acc, vel)
             
                 print("rv: ", rv)
             
@@ -130,10 +125,6 @@ class Robot(Resource):
         except RobotException as ex:
             return {'status':'ERROR','message':str(ex)}, 201
 
-##
-## Actually setup the Api resource routing here
-##
-## cd C:\Users\tionescu\Documents\UR5\git\python-urx\examples
 api.add_resource(Robot, '/robot')
 
 
@@ -151,42 +142,4 @@ if __name__ == '__main__':
 
     webbrowser.open("http://localhost:5001")
     app.run(port=5001,debug=False)
-    
-"""    
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.WARN)
-
-    rob = urx.Robot("192.168.50.110")
-    #rob = urx.Robot("localhost")
-    rob.set_tcp((0,0,0,0,0,0))
-    rob.set_payload(0.5, (0,0,0))
-    try:
-        l = 0.05
-        v = 0.08
-        a = 0.3
-        pose = rob.getl()
-        xyz = rob.get_pos()
-        print("robot tcp is at: ", pose)
-        print("robot xyz is at: ", xyz)
-        print("absolute move in base coordinate ")
-        pose[2] += 0
-        rob.movel(pose, acc=a, vel=v)
-        rob.set_pos((0.4,0.0,0.40), acc=a, vel=v)
-        print("relative move in base coordinate ")
-        rob.translate((0.1, 0, 0.01), acc=a, vel=v)
-        rob.translate((-0.1, 0, -0.01), acc=a, vel=v)
-        time.sleep(1)
-        print("relative move back and forth in tool coordinate")
-        rob.translate_tool((0, 0, -l), acc=a, vel=v)
-        rob.translate_tool((0, 0, l), acc=a, vel=v)
-        robotiqgrip = Robotiq_Two_Finger_Gripper(rob)
-        robotiqgrip.close_gripper()
-        robotiqgrip.open_gripper()
-        robotiqgrip.gripper_action(100)
-    finally:
-        rob.close()
-
-
-		
-"""
+   
