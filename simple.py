@@ -1,25 +1,46 @@
-import urx
+import sys
+import os
+
+urx_path = os.path.join(os.path.dirname(__file__), "python-urx")
+if not urx_path in sys.path:
+    sys.path.append(urx_path)
+
 import time
 import logging
+import urx
 from urx import RobotException
 from urx.robotiq_two_finger_gripper import Robotiq_Two_Finger_Gripper
 
-from flask import Flask,request
+from flask import Flask,request,redirect,send_from_directory
 from flask_restful import reqparse, abort, Api, Resource, inputs
 from flask_cors import CORS, cross_origin
 
 from scipy.spatial.transform import Rotation as R
 import numpy as np
 
+import argparse
+import webbrowser
+
 app = Flask(__name__)
 CORS(app)
 
 @app.route("/")
-def helloWorld():
-    return "Hello, cross-origin-world!"
+def home():
+    return redirect('/assembly/index.html')
+
+# Allow files from the static directory to be served directly
+@app.route('/assembly/<path:path>')
+def send_static(path):
+    return send_from_directory('assembly/', path)
+
+
 
 api = Api(app)
 
+rob = None
+robotiqgrip = None
+
+# Http Request parser 
 parser = reqparse.RequestParser()
 parser.add_argument('cmd', type=str)
 parser.add_argument('width', type=str)
@@ -32,9 +53,6 @@ parser.add_argument('rz', type=float, help='RZ Coordinate')
 parser.add_argument('vel', type=float, help='Velocity')
 parser.add_argument('acc', type=float, help='Acceleration')
     
-rob = urx.Robot("127.0.0.1")
-robotiqgrip = Robotiq_Two_Finger_Gripper(rob)
-
 class Robot(Resource):
     def get(self):
         pose = rob.getl()
@@ -49,7 +67,7 @@ class Robot(Resource):
         print("rpy: ", rpy)
         
         #return {'x': pose[0] * 1000, 'y': pose[1]  * 1000, 'z':pose[2]  * 1000, 'rx': pose[3] * 57.2958, 'ry': pose[4] * 57.2958, 'rz': pose[5] * 57.2958}
-        return {'x': pose[0] * 1000, 'y': pose[1]  * 1000, 'z':pose[2]  * 1000, 'rx': rpy[0], 'ry': rpy[1], 'rz': rpy[2]}
+        return {'x': pose[0] * 1000, 'y': pose[1]  * 1000, 'z':pose[2]  * 1000, 'rx': rpy[0], 'ry': rpy[1], 'rz': rpy[2], 'freedrive': rob.get_freedrive()}
 
     def post(self):
         args = parser.parse_args()
@@ -96,6 +114,13 @@ class Robot(Resource):
             if cmd == "gripper_action":
                 width = args['width'];
                 robotiqgrip.gripper_action(width)
+
+            if cmd == "freedrive_on":
+                #basically infinity timeout on freedrive                
+                rob.set_freedrive(True,1000000)
+
+            if cmd == "freedrive_off":
+                rob.set_freedrive(False)
         
             if cmd == "stop": 
                 rob.stop()
@@ -112,39 +137,20 @@ class Robot(Resource):
 api.add_resource(Robot, '/robot')
 
 
-class Freedrive(Resource): 
-    def get(self):
-        #use this to print all the mess :D 
-        #attrs = vars(rob.secmon)
-        #print(', '.join("%s: %s" % item for item in attrs.items()))
-        fd = rob.secmon._dict["RobotModeData"]["controlMode"] == 1
-        return {'freedrive': fd}
-        
-    def post(self):
-        fd = request.args.get('enable', default = False, type = inputs.boolean)
-        print("fd="+str(fd))
-        print(str(request.args))
-        try: 
-            rob.set_freedrive(fd,1000000) # default timeout is 60s, we want basically infinity
-            return {'status':'OK'}
-        except RobotException as ex:
-            return {'status':'ERROR','message':str(ex)}, 201
-
-        
-api.add_resource(Freedrive, '/freedrive')
-
-
-# Allow files from the static directory to be served directly
-@app.route('/static/<path:path>')
-def send_js(path):
-    return send_from_directory('static', path)
-
-
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
-    app.run(port=5001,debug=False)
 
+    args = argparse.ArgumentParser(description='CoMeMak Assembly: Rest API')
+    args.add_argument('--robot-ip', help='IP Address for the robot', default="192.168.0.1", required=False)
+    args = args.parse_args();
+
+    print("Connecting to robot " + args.robot_ip)
+    rob = urx.Robot(args.robot_ip)
+    robotiqgrip = Robotiq_Two_Finger_Gripper(rob)
+
+    webbrowser.open("http://localhost:5001")
+    app.run(port=5001,debug=False)
     
 """    
 

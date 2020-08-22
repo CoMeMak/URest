@@ -1,0 +1,6 @@
+[submodule "python-urx"]
+	path = python-urx
+	url = https://github.com/kritzikratzi/python-urx.git
+[submodule "assembly"]
+	path = assembly
+	url = https://github.com/CoMeMak/assembly.git
